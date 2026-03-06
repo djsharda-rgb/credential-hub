@@ -1,0 +1,406 @@
+openapi: 3.1.0
+info:
+  title: KYB Identity Wallet API
+  version: 1.0.0
+  description: |
+    API specification for the KYB Identity Wallet. Enables businesses to manage
+    their KYB credentials and present them to verifiers. Enables verifiers to
+    validate credentials against trusted issuers and revocation registries.
+
+servers:
+  - url: https://wallet.example/api/v1
+    description: Wallet API
+  - url: https://issuer.example/api/v1
+    description: Issuer API
+  - url: https://registry.example/api/v1
+    description: Issuer Registry API
+
+paths:
+  /credentials:
+    get:
+      operationId: listCredentials
+      summary: List stored credentials
+      description: Returns all KYB credentials in the business's wallet.
+      tags: [Wallet]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of credentials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KYBCredentialSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: storeCredential
+      summary: Store a new credential
+      description: Stores a newly issued KYB credential in the wallet.
+      tags: [Wallet]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KYBCredential"
+      responses:
+        "201":
+          description: Credential stored
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /credentials/{credentialId}:
+    get:
+      operationId: getCredential
+      summary: Get a specific credential
+      tags: [Wallet]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KYBCredential"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /presentations:
+    post:
+      operationId: createPresentation
+      summary: Create a Verifiable Presentation
+      description: |
+        Constructs and signs a Verifiable Presentation containing the specified
+        credential, bound to the given challenge and domain.
+      tags: [Wallet]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresentationRequest"
+      responses:
+        "200":
+          description: Signed Verifiable Presentation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifiablePresentation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /verify:
+    post:
+      operationId: verifyPresentation
+      summary: Verify a Verifiable Presentation
+      description: |
+        Validates a VP including signature checks, issuer trust, revocation status,
+        and policy compliance.
+      tags: [Verifier]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationRequest"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /issue:
+    post:
+      operationId: issueCredential
+      summary: Issue a KYB credential
+      description: |
+        Called by an accredited issuer after completing KYB verification.
+        Returns a signed credential to be delivered to the business wallet.
+      tags: [Issuer]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssuanceRequest"
+      responses:
+        "201":
+          description: Issued credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KYBCredential"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /registry/issuers:
+    get:
+      operationId: listIssuers
+      summary: List registered issuers
+      tags: [Registry]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended, revoked, expired]
+      responses:
+        "200":
+          description: List of issuers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssuerEntry"
+
+  /registry/issuers/{issuerId}:
+    get:
+      operationId: getIssuer
+      summary: Get issuer details
+      tags: [Registry]
+      parameters:
+        - name: issuerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Issuer details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuerEntry"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /registry/verify-trust:
+    post:
+      operationId: verifyIssuerTrust
+      summary: Verify issuer trust status
+      tags: [Registry]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [issuerId, credentialType]
+              properties:
+                issuerId:
+                  type: string
+                credentialType:
+                  type: string
+      responses:
+        "200":
+          description: Trust verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trusted:
+                    type: boolean
+                  accreditationStatus:
+                    type: string
+                  authorizedForType:
+                    type: boolean
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+
+    KYBCredential:
+      type: object
+      description: A W3C Verifiable Credential containing KYB attestation data.
+      properties:
+        "@context":
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        type:
+          type: array
+          items:
+            type: string
+        issuer:
+          type: string
+        issuanceDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        credentialSubject:
+          type: object
+        credentialStatus:
+          type: object
+        proof:
+          type: object
+
+    KYBCredentialSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        issuer:
+          type: string
+        legalName:
+          type: string
+        jurisdiction:
+          type: string
+        issuanceDate:
+          type: string
+          format: date-time
+        expirationDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [valid, expired, revoked]
+
+    PresentationRequest:
+      type: object
+      required: [credentialId, challenge, domain]
+      properties:
+        credentialId:
+          type: string
+        challenge:
+          type: string
+        domain:
+          type: string
+
+    VerifiablePresentation:
+      type: object
+      properties:
+        "@context":
+          type: array
+          items:
+            type: string
+        type:
+          type: array
+          items:
+            type: string
+        verifiableCredential:
+          type: array
+          items:
+            $ref: "#/components/schemas/KYBCredential"
+        proof:
+          type: object
+
+    VerificationRequest:
+      type: object
+      required: [presentation, policyId]
+      properties:
+        presentation:
+          $ref: "#/components/schemas/VerifiablePresentation"
+        policyId:
+          type: string
+
+    VerificationResult:
+      type: object
+      properties:
+        verificationId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        result:
+          type: string
+          enum: [accepted, rejected]
+        checks:
+          type: object
+        credentialSummary:
+          type: object
+
+    IssuanceRequest:
+      type: object
+      required: [subjectDid, kybData]
+      properties:
+        subjectDid:
+          type: string
+        kybData:
+          type: object
+        validityMonths:
+          type: integer
+          default: 12
+
+    IssuerEntry:
+      type: object
+      properties:
+        issuerId:
+          type: string
+        legalName:
+          type: string
+        jurisdiction:
+          type: string
+        accreditationStatus:
+          type: string
+          enum: [active, suspended, revoked, expired]
+        accreditedSince:
+          type: string
+          format: date-time
+        accreditationExpires:
+          type: string
+          format: date-time
+        credentialTypesAuthorized:
+          type: array
+          items:
+            type: string
