@@ -1,0 +1,43 @@
+{
+  "verificationId": "vr-2025-03-01-a1b2c3d4",
+  "timestamp": "2025-03-01T14:30:00Z",
+  "result": "accepted",
+  "credentialId": "urn:uuid:3a84e4b2-7c1f-4e9a-b6d3-9f2c8e1a5d70",
+  "policyId": "pol-001",
+  "policyVersion": "1.0",
+  "verifier": "did:web:payout-platform.example",
+  "checks": {
+    "presentationSignature": {
+      "status": "passed",
+      "details": "VP signature verified against did:web:acme-widgets.example#key-1"
+    },
+    "credentialSignature": {
+      "status": "passed",
+      "details": "Credential signature verified against did:web:issuer-alpha.example#key-1"
+    },
+    "issuerTrust": {
+      "status": "passed",
+      "details": "Issuer did:web:issuer-alpha.example found in registry with status 'active'"
+    },
+    "temporalValidity": {
+      "status": "passed",
+      "details": "Credential issued 2025-03-01, expires 2026-03-01, age 0 days (max 365)"
+    },
+    "revocationStatus": {
+      "status": "passed",
+      "details": "StatusList2021 bit 42 is 0 (not revoked)"
+    },
+    "requiredFields": {
+      "status": "passed",
+      "details": "All required fields present: legalName, jurisdictionOfIncorporation, registrationNumber"
+    }
+  },
+  "credentialSummary": {
+    "issuer": "did:web:issuer-alpha.example",
+    "subject": "did:web:acme-widgets.example",
+    "legalName": "Acme Widgets International Ltd.",
+    "jurisdiction": "US",
+    "verificationLevel": "standard",
+    "entityStatus": "Active"
+  }
+}
